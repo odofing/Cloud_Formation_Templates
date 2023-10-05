@@ -7,7 +7,7 @@ Metadata:
         Label:
           default: database Instance Settings
         Parameters:
-          - DbClass
+      #    - DbClass
           - MultiAZ
           - AllocatedStorage
           - MasterUsername
@@ -18,20 +18,21 @@ Metadata:
         Parameters:
           - VpcId
           - DbSubnets
+          - VpcCidrBlocks
           - SecurityGroupPorts
     ParameterLabels:
-      DbClass:
-        default: Database instance class
+      # DbClass:
+      #   default: Database instance class
       AllocatedStorage:
         default: Allocated storage size
 Parameters:
-  DbClass:
-    Type: String 
-    Description: RDS instance class 
-    AllowedValues: 
-      - db.t2.micro
-      - db.t2.small
-    ConstraintDescription: 'Db class parameter can only contain these values: db.t2.micro or db.t2.small'
+  # DbClass:
+  #   Type: String 
+  #   Description: RDS instance class 
+  #   AllowedValues: 
+  #     - db.t2.micro
+  #     - db.t2.small
+  #   ConstraintDescription: 'Db class parameter can only contain these values: db.t2.micro or db.t2.small'
 
   MasterUsername:
     Type: String
@@ -75,11 +76,32 @@ Parameters:
   VpcId:
     Type: AWS::EC2::VPC::Id # pulls out the VPC id in that region (AWS-specific parameters)
     Description: A valid VPC id in your AWS account
+
+  EnvironmentName:
+    Type: String 
+    AllowedValues: 
+      - Production 
+      - Test 
+    Default: Test 
+
+Mappings:
+  EnvironmentOptions:
+    Production: 
+      DbClass: db.t2.small 
+    Test:
+      DbClass: db.t2.micro
+
+  RegionImages:
+    eu-west-1:
+      ImageId: ami-08f32efd140b7d89f
+    us-east-1:
+      ImageId: ami-0de53d8956e8dcf80
+
 Resources:
   Bastion:
     Type: AWS::EC2::Instance 
     Properties:
-      ImageId: ami-08f32efd140b7d89f
+      ImageId: !FindInMap [ RegionImages, !Ref 'AWS::Region', ImageId ]
       InstanceType: t2.micro
       SubnetId: !Select [0, !Ref DbSubnets]
       Tags:
@@ -123,7 +145,8 @@ Resources:
   DatabaseInstance:
     Type: AWS::RDS::DBInstance
     Properties:
-      DBInstanceClass: !Ref DbClass 
+    # DBInstanceClass: !Ref DbClass 
+      DBInstanceClass: !FindInMap [ EnvironmentOptions, !Ref EnvironmentName, DbClass ]
       Engine: mariadb
       MultiAZ: !Ref MultiAZ
       PubliclyAccessible: true
