@@ -1,0 +1,72 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: VPC public subnet template
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: Enter Image Id for your region
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Description: Section 2 activity VPC definition
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      Tags:
+        -
+          Key: Name
+          Value: Section2ActivityVPC
+  Subnet:
+    Type: AWS::EC2::Subnet 
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref Vpc
+  RouteTable:
+    Type: AWS::EC2::RouteTable 
+    Properties:
+      VpcId: !Ref Vpc
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+  Route:
+    Type: AWS::EC2::Route 
+    DependsOn:
+      - GatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      GatewayId: !Ref InternetGateway
+      DestinationCidrBlock: 0.0.0.0/0
+  SubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet
+  Instance:
+    Type: AWS::EC2::Instance 
+    DependsOn:
+      - Route
+      - SubnetRouteTableAssociation
+    Properties:
+      InstanceType: t2.micro
+      SubnetId: !Ref Subnet 
+      ImageId: !Ref ImageId
+      SecurityGroupIds:
+        - !Ref SecurityGroup
+      Tags:
+        -
+          Key: Name
+          Value: Web Server
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup 
+    Properties:
+      GroupDescription: Activity security group 
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        -
+          IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+

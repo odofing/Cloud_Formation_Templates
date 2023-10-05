@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Sample database stack for the Parameters section
+Parameters:
+  DbClass:
+    Type: String 
+    Description: RDS instance class 
+    AllowedValues: 
+      - db.t2.micro
+      - db.t2.small
+    ConstraintDescription: 'Db class parameter can only contain these values: db.t2.micro or db.t2.small'
+
+  MasterUsername:
+    Type: String
+    Description: master username for the db instance, Max length is 10 characters
+    Default: dbadmin
+    MaxLength: 10
+    NoEcho: true
+
+  MasterPassword:
+    Type: String
+    Description: master password for the db instance, min length is 8 characters
+    MinLength: 8
+    NoEcho: true
+
+  MultiAZ:
+    Type: String
+    Description: Enalble MultiAZ
+    AllowedValues:
+      - true
+      - false
+    ConstraintDescription: multi AZ should be true or false
+    Default: false
+
+  AllocatedStorage:
+    Type: Number
+    Description: Database storage size in GB
+    MinValue: 8
+    MaxValue: 20
+    ConstraintDescription: allowed storage parameter value should be between 8 - 20
+    Default: 8
+
+  SecurityGroupPorts:
+    Type: List<Number>
+    Description: 'Port numbers as a list: <db port>, <web server>'
+    Default: '3306, 80'
+  
+  DbSubnets:
+   # Type: CommaDelimitedList
+    Type: List<AWS::EC2::Subnet::Id> # it pulls out all subnets in that region and makes it selective (AWS-specific parameters)
+    Description: 'db subnet IDs for a list of: <subnet1>, <subnet2>, <subnet3>'
+  VpcId:
+    Type: AWS::EC2::VPC::Id # pulls out the VPC id in that region (AWS-specific parameters)
+    Description: A valid VPC id in your AWS account
+Resources:
+  Bastion:
+    Type: AWS::EC2::Instance 
+    Properties:
+      ImageId: ami-08f32efd140b7d89f
+      InstanceType: t2.micro
+      SubnetId: !Select [0, !Ref DbSubnets]
+      Tags:
+        -
+          Key: Name
+          Value: !Sub '${AWS::StackName}-Bastion' # Psuedo Parameter
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId # vpc-0cc91e0cb572300d7
+      GroupDescription: 'Database instances security group'
+      SecurityGroupIngress:
+        - 
+          CidrIp: 0.0.0.0/0
+          FromPort:
+            Fn::Select: [0, !Ref SecurityGroupPorts]
+          ToPort: !Select [0, !Ref SecurityGroupPorts]
+          IpProtocol: tcp
+
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VpcId
+      GroupDescription: 'EC2 instances security group'
+      SecurityGroupIngress:
+        - 
+          CidrIp: 0.0.0.0/0
+          FromPort: !Select [1, !Ref SecurityGroupPorts]
+          ToPort: !Select [1, !Ref SecurityGroupPorts]
+          IpProtocol: tcp
+
+  # Note: Please replace the value of SubnetIds property 
+  # with the subnet ids of the subnets in your default VPC!
+
+  DbSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: Subnets to launch db instances into
+      SubnetIds: !Ref DbSubnets # - subnet-064a738f5b23dcdda,  - subnet-0f1993a312e9c36e0,  - subnet-0f231f5c8ba1feac9
+        
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: !Ref DbClass 
+      Engine: mariadb
+      MultiAZ: !Ref MultiAZ
+      PubliclyAccessible: true
+      AllocatedStorage: !Ref AllocatedStorage
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterPassword
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: 
+        - !Ref DbSecurityGroup
+      
