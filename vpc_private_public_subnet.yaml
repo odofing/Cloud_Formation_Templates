@@ -17,8 +17,8 @@ Parameters:
   EbsVolumeSize:
     Type: Number
     Description: Volume size in GiB
-  KeyPairName:
-    Type: AWS::EC2::KeyPair::KeyName 
+  # KeyPairName:
+  #   Type: AWS::EC2::KeyPair::KeyName 
   VpcCidrBlocks:
     Type: CommaDelimitedList
     Description: 'vpc, public subnet, private subnet'
@@ -120,7 +120,7 @@ Resources:
       InstanceType: !Ref InstanceType 
       SubnetId: !Ref PublicSubnet 
       ImageId: !Ref ImageId
-      KeyName: !Ref KeyPairName 
+     # KeyName: !Ref KeyPairName 
       SecurityGroupIds:
         - !Ref WebServerSecurityGroup
       BlockDeviceMappings:
@@ -129,6 +129,14 @@ Resources:
           Ebs:
             VolumeSize: !Ref EbsVolumeSize
             VolumeType: gp2
+      UserData: 
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          yum install -y httpd
+          systemctl start httpd
+          systemctl enable httpd
+          echo "<h1>Hello World from $(hostname -f)</h1>" > /var/www/html/index.html
       Tags:
         -
           Key: Name

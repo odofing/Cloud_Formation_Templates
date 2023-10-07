@@ -71,4 +71,14 @@ Resources:
       VPCSecurityGroups: 
         - !Ref DbSecurityGroup
 
-      
+Outputs:
+  MasterDbId:
+    Value: !Ref MasterDbInstance
+    Description: Master database instance identifier
+  MasterDbEndpoint:
+    Value: !GetAtt [ MasterDbInstance, Endpoint.Address ]
+    Description: The connection endppint of the master database instance
+  ReadReplicaEndpoint:
+    Value: !GetAtt [ ReadReplica, Endpoint.Address ]
+    Description: The connection endpoint for the read replica
+    Condition: EnvironmentIsProduction
